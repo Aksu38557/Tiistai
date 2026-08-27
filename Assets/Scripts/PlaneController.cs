@@ -1,32 +1,114 @@
-using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.SceneManagement;
+using System.Collections;
+
 
 public class PlaneController : MonoBehaviour
 {
+    public Transform cameraTransform;
+    public float shakeDuration = 0.15f;
+    public float shakeAmount = 0.15f;
+
+    private Vector3 cameraOriginalPosition;
 
     public float flySpeed = 5f;
-    public float yawAmount = 120;
+    public float yawAmount = 120f;
+    public float turnSmoothTime = 0.15f;
+
+    public float hp = 3f;
+    public float damageamount = 1f;
 
     private float yaw;
+    private float yawVelocity;
+    private float fixedY;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    public UnityEvent hit;
+
     void Start()
     {
-        
+        yaw = transform.eulerAngles.y;
+        fixedY = transform.position.y;
+
+        if (cameraTransform != null)
+        {
+            cameraOriginalPosition = cameraTransform.localPosition;
+        }
     }
 
-    // Update is called once per frame
+    public void death()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("ResetBuilding"))
+        {
+            collision.gameObject.GetComponent<BoxCollider>().enabled = false;
+
+            hp -= damageamount;
+            hit.Invoke();
+
+            StartCoroutine(CameraShake());
+
+            if (hp <= 0)
+            {
+                death();
+            }
+        }
+
+        if (collision.gameObject.CompareTag("DisappearBuilding"))
+        {
+            Destroy(collision.gameObject);
+        }
+    }
+
+    IEnumerator CameraShake()
+    {
+        float elapsed = 0f;
+
+        while (elapsed < shakeDuration)
+        {
+            float x = Random.Range(-1f, 1f) * shakeAmount;
+            float y = Random.Range(-1f, 1f) * shakeAmount;
+
+            cameraTransform.localPosition =
+                cameraOriginalPosition + new Vector3(x, y, 0f);
+
+            elapsed += Time.deltaTime;
+
+            yield return null;
+        }
+
+        cameraTransform.localPosition = cameraOriginalPosition;
+    }
+
     void Update()
     {
+        float horizontalInput = Input.GetAxis("Horizontal");
+
+        // Move forward
         transform.position += transform.forward * flySpeed * Time.deltaTime;
 
-        float horizontalInput = Input.GetAxis("Horizontal");
-        float verticalInput = Input.GetAxis("Vertical");
+        // Turn left/right
+        float targetYaw = yaw + horizontalInput * yawAmount;
 
-        yaw += horizontalInput * yawAmount * Time.deltaTime;
-        float pitch = Mathf.Lerp(0, 20, Mathf.Abs(verticalInput)) * Mathf.Sign(verticalInput);
-        float roll = Mathf.Lerp(0, 30, Mathf.Abs(horizontalInput)) * -Mathf.Sign(horizontalInput);
+        yaw = Mathf.SmoothDampAngle(
+            yaw,
+            targetYaw,
+            ref yawVelocity,
+            turnSmoothTime
+        );
 
-        transform.localRotation = quaternion.Euler(Vector3.up * yaw + Vector3.right * (pitch * Time.deltaTime) + Vector3.forward * (roll * Time.deltaTime));
+        // Apply rotation
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+        // Lock vertical position
+        transform.position = new Vector3(
+            transform.position.x,
+            fixedY,
+            transform.position.z
+        );
     }
 }
