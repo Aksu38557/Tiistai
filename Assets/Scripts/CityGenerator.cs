@@ -141,12 +141,11 @@ public class CityGenerator : MonoBehaviour
             GameObject building =
                 buildings[Random.Range(0, buildings.Length)];
 
-            // Random Y rotation
-            Quaternion rotation = Quaternion.Euler(
-                 0f,
-                 Random.Range(0f, 360f),
-                 0f
-            );
+            // Random Y rotation while preserving
+            // the prefab's original orientation
+            Quaternion rotation =
+                Quaternion.AngleAxis(Random.Range(0f, 360f), Vector3.up)
+                * building.transform.rotation;
 
             // Create the building
             GameObject clone = Instantiate(
@@ -154,6 +153,18 @@ public class CityGenerator : MonoBehaviour
                 position,
                 rotation
             );
+
+            // Find the renderer on the building
+            Renderer renderer = clone.GetComponentInChildren<Renderer>();
+
+            if (renderer != null)
+            {
+                // Find the bottom of the building
+                float bottom = renderer.bounds.min.y;
+
+                // Move the building so its bottom is exactly at Y = 0
+                clone.transform.position -= new Vector3(0f, bottom, 0f);
+            }
 
             // Put building inside the chunk
             clone.transform.SetParent(chunkObject.transform);
