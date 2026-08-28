@@ -11,7 +11,12 @@ public class PlaneController : MonoBehaviour
     public float shakeAmount = 0.15f;
 
     private Vector3 cameraOriginalPosition;
+    //
+    private float currentCameraTilt;
 
+    public float cameraTiltAmount = 15f;
+    public float cameraTiltSpeed = 5f;
+    //
     public float flySpeed = 5f;
     public float yawAmount = 120f;
     public float turnSmoothTime = 0.15f;
@@ -66,6 +71,10 @@ public class PlaneController : MonoBehaviour
 
     IEnumerator CameraShake()
     {
+        if (cameraTransform == null)
+        {
+            yield break;
+        }
         float elapsed = 0f;
 
         while (elapsed < shakeDuration)
@@ -88,6 +97,10 @@ public class PlaneController : MonoBehaviour
     {
         float horizontalInput = Input.GetAxis("Horizontal");
 
+        Vector3 horizontalForward = transform.forward;
+        //
+        horizontalForward.Normalize();
+        //
         // Move forward
         transform.position += transform.forward * flySpeed * Time.deltaTime;
 
@@ -100,15 +113,34 @@ public class PlaneController : MonoBehaviour
             ref yawVelocity,
             turnSmoothTime
         );
+        //
+        horizontalForward.Normalize();
 
-        // Apply rotation
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        if (cameraTransform != null)
+        {
+            float targetTilt = -horizontalInput * cameraTiltAmount;
 
-        // Lock vertical position
-        transform.position = new Vector3(
-            transform.position.x,
-            fixedY,
-            transform.position.z
-        );
+            currentCameraTilt = Mathf.Lerp(
+                currentCameraTilt,
+                targetTilt,
+                cameraTiltSpeed * Time.deltaTime
+            );
+
+            cameraTransform.localRotation = Quaternion.Euler(
+                0f,
+                0f,
+                currentCameraTilt
+            );
+
+            // Apply rotation
+            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+            // Lock vertical position
+            transform.position = new Vector3(
+                transform.position.x,
+                fixedY,
+                transform.position.z
+            );
+        }
     }
 }
